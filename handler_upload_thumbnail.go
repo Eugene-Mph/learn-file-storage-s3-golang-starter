@@ -53,6 +53,11 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	defer file.Close()
 
 	contentType := header.Header.Get("Content-Type")
+
+	if contentType == "" {
+		respondWithError(w, http.StatusBadRequest, "Missing Content-Type for file", err)
+		return
+	}
 	// log.Printf("content type: %s", contentType)
 
 	imageData, err := io.ReadAll(file)
