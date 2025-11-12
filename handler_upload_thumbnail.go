@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime"
 	"net/http"
 	"os"
 
@@ -53,15 +54,20 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 
 	defer file.Close()
 
-	contentType := header.Header.Get("Content-Type")
+	mediaType, _, err := mime.ParseMediaType(header.Header.Get("Content-Type"))
 
-	if contentType == "" {
-		respondWithError(w, http.StatusBadRequest, "Missing Content-Type for file", err)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Content-Type ", err)
+		return
+	}
+
+	if mediaType != "image/jpeg" && mediaType != "image/png" {
+		respondWithError(w, http.StatusBadRequest, "Invalid file type", nil)
 		return
 	}
 
 	// log.Printf("content type: %s | file extension: %s", contentType, fileExtension)
-	assetPath := getAssetPath(videoID, contentType)
+	assetPath := getAssetPath(videoID, mediaType)
 	assetDiskPath := cfg.getAssetDiskPath(assetPath)
 
 	NewFile, err := os.Create(assetDiskPath)
@@ -86,7 +92,7 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	}
 
 	if dbVedio.UserID != userID {
-		respondWithError(w, http.StatusUnauthorized, "Not authorized to update this vedio", err)
+		respondWithError(w, http.StatusUnauthorized, "Not authorized to update this vedio", nil)
 		return
 	}
 	// log.Printf("pre update: %v\n", dbVedio)
