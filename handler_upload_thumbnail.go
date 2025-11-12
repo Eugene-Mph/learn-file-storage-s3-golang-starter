@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
@@ -28,10 +29,68 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-
 	fmt.Println("uploading thumbnail for video", videoID, "by user", userID)
 
 	// TODO: implement the upload here
 
-	respondWithJSON(w, http.StatusOK, struct{}{})
+	const maxMemory = 10 << 20 // 10MB
+
+	err = r.ParseMultipartForm(maxMemory)
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "unable to parse request", err)
+		return
+	}
+
+	file, header, err := r.FormFile("thumbnail")
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "unable to parse from file", err)
+		return
+	}
+
+	defer file.Close()
+
+	contentType := header.Header.Get("Content-Type")
+	// log.Printf("content type: %s", contentType)
+
+	imageData, err := io.ReadAll(file)
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error reading file", err)
+		return
+	}
+
+	dbVedio, err := cfg.db.GetVideo(videoID)
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "couldn't find vedio", err)
+		return
+	}
+
+	if dbVedio.UserID != userID {
+		respondWithError(w, http.StatusUnauthorized, "Not authorized to update this vedio", err)
+		return
+	}
+	// log.Printf("pre update: %v\n", dbVedio)
+
+	videoThumbnails[videoID] = thumbnail{
+		data:      imageData,
+		mediaType: contentType,
+	}
+
+	thumbnailURL := fmt.Sprintf("http://localhost:%s/api/thumbnails/%s", cfg.port, videoIDString)
+	dbVedio.ThumbnailURL = &thumbnailURL
+	// log.Println(*dbVedio.ThumbnailURL)
+
+	err = cfg.db.UpdateVideo(dbVedio)
+
+	if err != nil {
+		delete(videoThumbnails, videoID)
+		respondWithError(w, http.StatusInternalServerError, "unable to update vedio data", err)
+		return
+	}
+	// log.Printf("Post update: %v", dbVedio)
+
+	respondWithJSON(w, http.StatusOK, dbVedio)
 }
