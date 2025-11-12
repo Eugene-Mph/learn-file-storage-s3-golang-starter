@@ -1,10 +1,11 @@
 package main
 
 import (
-	"encoding/base64"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
 	"github.com/google/uuid"
@@ -58,12 +59,22 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		respondWithError(w, http.StatusBadRequest, "Missing Content-Type for file", err)
 		return
 	}
-	// log.Printf("content type: %s", contentType)
 
-	imageData, err := io.ReadAll(file)
+	// log.Printf("content type: %s | file extension: %s", contentType, fileExtension)
+	assetPath := getAssetPath(videoID, contentType)
+	assetDiskPath := cfg.getAssetDiskPath(assetPath)
+
+	NewFile, err := os.Create(assetDiskPath)
 
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error reading file", err)
+		respondWithError(w, http.StatusInternalServerError, "Couldn't create img file on server", err)
+		return
+	}
+
+	_, err = io.Copy(NewFile, file)
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Eror saving file data", err)
 		return
 	}
 
@@ -79,12 +90,10 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	// log.Printf("pre update: %v\n", dbVedio)
+	assetPathURL := cfg.getAssetUrl(assetPath)
 
-	encodedImageData := base64.StdEncoding.EncodeToString(imageData)
-	dataUrl := fmt.Sprintf("data:%s;base64,%s", contentType, encodedImageData)
-
-	dbVedio.ThumbnailURL = &dataUrl
-	// log.Println(*dbVedio.ThumbnailURL)
+	dbVedio.ThumbnailURL = &assetPathURL
+	log.Printf("file url: %s", assetPathURL)
 
 	err = cfg.db.UpdateVideo(dbVedio)
 
