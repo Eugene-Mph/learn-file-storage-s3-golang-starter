@@ -87,12 +87,12 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	dbVedio, err := cfg.db.GetVideo(videoID)
 
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "couldn't find vedio", err)
+		respondWithError(w, http.StatusInternalServerError, "couldn't find video", err)
 		return
 	}
 
 	if dbVedio.UserID != userID {
-		respondWithError(w, http.StatusUnauthorized, "Not authorized to update this vedio", nil)
+		respondWithError(w, http.StatusUnauthorized, "Not authorized to update this video", nil)
 		return
 	}
 	// log.Printf("pre update: %v\n", dbVedio)

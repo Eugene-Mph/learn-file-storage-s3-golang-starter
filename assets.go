@@ -37,6 +37,10 @@ func (cfg *apiConfig) getAssetUrl(assetpath string) string {
 	return fmt.Sprintf("http://localhost:%s/assets/%s", cfg.port, assetpath)
 }
 
+func (cfg *apiConfig) getObjectURL(Key string) string {
+	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", cfg.s3Bucket, cfg.s3Region, Key)
+}
+
 func mediaTypeToExt(MediaType string) string {
 	parts := strings.Split(MediaType, "/")
 
